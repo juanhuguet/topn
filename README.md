@@ -1,6 +1,207 @@
 # topn
 
-Utility function for `string_grouper`
+Utility function for `string_grouper` to use instead of pandas' `nlargest()` function (since [pandas does it so slowly](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.core.groupby.SeriesGroupBy.nlargest.html)).
+
+```python
+import pandas as pd
+import numpy as np
+
+r = np.array([0, 1, 2, 1, 2, 3, 2]) 
+c = np.array([1, 1, 0, 3, 1, 2, 3]) 
+d = np.array([0.0, 0.2, 0.1, 1.0, 0.9, 0.4, 0.6]) 
+rcd = pd.DataFrame({'r': r, 'c': c, 'd': d})
+rcd
+```
+
+
+
+
+<div>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>r</th>
+      <th>c</th>
+      <th>d</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>0</td>
+      <td>1</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0.2</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2</td>
+      <td>0</td>
+      <td>0.1</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>1</td>
+      <td>3</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2</td>
+      <td>1</td>
+      <td>0.9</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>3</td>
+      <td>2</td>
+      <td>0.4</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>2</td>
+      <td>3</td>
+      <td>0.6</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+```python
+ntop = 2
+```
+
+
+```python
+rcd.set_index('c').groupby('r')['d'].nlargest(ntop).reset_index().sort_values(['r', 'd'], ascending = [True, False])
+```
+
+
+
+
+<div>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>r</th>
+      <th>c</th>
+      <th>d</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>0</td>
+      <td>1</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1</td>
+      <td>3</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0.2</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2</td>
+      <td>1</td>
+      <td>0.9</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2</td>
+      <td>3</td>
+      <td>0.6</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>3</td>
+      <td>2</td>
+      <td>0.4</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+## Usage
+```python
+from topn import awesome_topn
+
+r, c, d = awesome_topn(r, c, d, ntop, n_jobs=7)
+pd.DataFrame({'r': r, 'c': c, 'd': d})
+```
+
+
+
+
+<div>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>r</th>
+      <th>c</th>
+      <th>d</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>0</td>
+      <td>1</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1</td>
+      <td>3</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0.2</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2</td>
+      <td>1</td>
+      <td>0.9</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2</td>
+      <td>3</td>
+      <td>0.6</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>3</td>
+      <td>2</td>
+      <td>0.4</td>
+    </tr>
+  </tbody>
+</table>
+</div>
 
 ## Short Description
 
