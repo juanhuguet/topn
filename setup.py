@@ -62,6 +62,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/ParticularMiner/topn',
+    download_url='https://github.com/ParticularMiner/topn/archive/refs/tags/v0.0.0.tar.gz',
     author='Particular Miner',
     author_email='particularminer@fake.com',
     license='MIT',
