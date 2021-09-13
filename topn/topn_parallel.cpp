@@ -100,6 +100,39 @@ void inner_pick_nlargest(
 template void inner_pick_nlargest<float>(job_range_type job_range, rcd<float> v_rcd[], int ntop, int* new_end);
 template void inner_pick_nlargest<double>(job_range_type job_range, rcd<double> v_rcd[], int ntop, int* new_end);
 
+template<typename T>
+int find_next_boundary(rcd<T> v_rcd[], int x, int end)
+{
+	if (v_rcd[x - 1].r == v_rcd[end - 1].r) return end;
+	while (v_rcd[x - 1].r == v_rcd[x].r){ // non-boundary condition
+		int mid = (x + end)/2;
+		if (mid == x) return end;
+		else if (v_rcd[x].r == v_rcd[mid - 1].r) x = mid;
+		else end = mid;
+	}
+	return x;
+}
+
+template int find_next_boundary<float>(rcd<float> v_rcd[], int x, int end);
+template int find_next_boundary<double>(rcd<double> v_rcd[], int x, int end);
+
+template<typename T>
+int find_prev_boundary(rcd<T> v_rcd[], int begin, int x)
+{
+	if (v_rcd[begin].r == v_rcd[x].r) return begin;
+	while (v_rcd[x - 1].r == v_rcd[x].r){ // non-boundary condition
+		int mid = (begin + x)/2;
+		if (mid == x) return begin;
+		else if (v_rcd[x].r == v_rcd[mid].r) x = mid;
+		else begin = mid;
+	}
+	return x;
+}
+
+template int find_prev_boundary<float>(rcd<float> v_rcd[], int x, int end);
+template int find_prev_boundary<double>(rcd<double> v_rcd[], int x, int end);
+
+
 /*
 	r, c, and d are 1D arrays all of the same length n.
 	This function will output arrays rn, cn, and dn of length N <= n such
@@ -157,28 +190,6 @@ int topn_parallel(
 	sort(&v_rcd[0], &v_rcd[n]);
 
 	// adjust the job-range boundaries to coincide with row boundaries:
-	auto find_next_boundary = [](auto& v_rcd, int x, int end){
-		if (v_rcd[x - 1].r == v_rcd[end - 1].r) return end;
-		while (v_rcd[x - 1].r == v_rcd[x].r){ // non-boundary condition
-			int mid = (x + end)/2;
-			if (mid == x) return end;
-			else if (v_rcd[x].r == v_rcd[mid - 1].r) x = mid;
-			else end = mid;
-		}
-		return x;
-	};
-
-	auto find_prev_boundary = [](auto& v_rcd, int begin, int x){
-		if (v_rcd[begin].r == v_rcd[x].r) return begin;
-		while (v_rcd[x - 1].r == v_rcd[x].r){ // non-boundary condition
-			int mid = (begin + x)/2;
-			if (mid == x) return begin;
-			else if (v_rcd[x].r == v_rcd[mid].r) x = mid;
-			else begin = mid;
-		}
-		return x;
-	};
-
 	for (int job_nr = 1; job_nr < n_jobs; job_nr++) {
 		// This condition is always enforced:
 		job_ranges[job_nr].begin = job_ranges[job_nr - 1].end;
@@ -186,8 +197,8 @@ int topn_parallel(
 		int x = job_ranges[job_nr].begin;	// x marks the spot
 		int f = job_ranges[job_nr - 1].begin;	// f: floor
 		int c = n;	// c: ceiling
-		int x0 = find_prev_boundary(v_rcd, f, x);
-		int x1 = find_next_boundary(v_rcd, x, c);
+		int x0 = find_prev_boundary<T>(v_rcd.data(), f, x);
+		int x1 = find_next_boundary<T>(v_rcd.data(), x, c);
 		if (f < x0 && (x0 - x) >= (x - x1)){
 			job_ranges[job_nr - 1].end = x0;
 			job_ranges[job_nr].begin = x0;
