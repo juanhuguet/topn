@@ -1,6 +1,6 @@
 # topn
 
-Utility function for `string_grouper` to use instead of pandas' `nlargest()` function (since [pandas does it so slowly](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.core.groupby.SeriesGroupBy.nlargest.html)).
+Utility function for `string_grouper` to use instead of pandas' `SeriesGroupBy` `nlargest()` function (since [pandas does it so slowly](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.core.groupby.SeriesGroupBy.nlargest.html)).
 
 ```python
 import pandas as pd

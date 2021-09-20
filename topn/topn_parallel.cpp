@@ -50,6 +50,25 @@ template void inner_gather<double>(int job_sz, rcd<double> v_rcd[], int r[], int
 
 
 template<typename T>
+void inner_gather_csr(
+		int job_sz,
+		rcd<T> v_rcd[],
+		int r[],
+		int c[],
+		T d[]
+)
+{
+	for (int i = 0; i < job_sz; i++){
+		r[v_rcd[i].r]++;
+		c[i] = v_rcd[i].c;
+		d[i] = v_rcd[i].d;
+	}
+}
+template void inner_gather_csr<float>(int job_sz, rcd<float> v_rcd[], int r[], int c[], float d[]);
+template void inner_gather_csr<double>(int job_sz, rcd<double> v_rcd[], int r[], int c[], double d[]);
+
+
+template<typename T>
 void inner_copy_to_v_rcd(
 		job_range_type job_range,
 		rcd<T> dest[],
@@ -100,6 +119,15 @@ void inner_pick_nlargest(
 template void inner_pick_nlargest<float>(job_range_type job_range, rcd<float> v_rcd[], int ntop, int* new_end);
 template void inner_pick_nlargest<double>(job_range_type job_range, rcd<double> v_rcd[], int ntop, int* new_end);
 
+
+/*
+ * The idea of the function "find_next_boundary" is how to get from ^ to *
+ * (i.e., from inside a 1D-zone to just outside it in the next zone)
+ *
+ * previous zone     current zone         next zone
+ * _______________|_________________|__________________
+ *                       ^           *
+ */
 template<typename T>
 int find_next_boundary(rcd<T> v_rcd[], int x, int end)
 {
@@ -116,14 +144,21 @@ int find_next_boundary(rcd<T> v_rcd[], int x, int end)
 template int find_next_boundary<float>(rcd<float> v_rcd[], int x, int end);
 template int find_next_boundary<double>(rcd<double> v_rcd[], int x, int end);
 
+/*
+ * The idea of the function "find_prev_boundary" is how to get from ^ to *
+ * (i.e., from inside a 1D-zone to its start just outside the previous zone)
+ *
+ * previous zone     current zone         next zone
+ * _______________|_________________|__________________
+ *                 *        ^
+ */
 template<typename T>
 int find_prev_boundary(rcd<T> v_rcd[], int begin, int x)
 {
 	if (v_rcd[begin].r == v_rcd[x].r) return begin;
 	while (v_rcd[x - 1].r == v_rcd[x].r){ // non-boundary condition
 		int mid = (begin + x)/2;
-		if (mid == x) return begin;
-		else if (v_rcd[x].r == v_rcd[mid].r) x = mid;
+		if (v_rcd[x].r == v_rcd[mid].r) x = mid;
 		else begin = mid;
 	}
 	return x;
@@ -161,6 +196,7 @@ int topn_parallel(
 		int c[],
 		T d[],
 		int ntop,
+		int n_rows,
 		int n_jobs
 )
 {
@@ -234,23 +270,43 @@ int topn_parallel(
 	partial_sum(sub_counts.begin(), sub_counts.end(), dest_job_starts.begin() + 1);
 
 	// gather the results:
-	for (int job_nr = 0; job_nr < n_jobs; job_nr++) {
+	if (n_rows < 0){
+		for (int job_nr = 0; job_nr < n_jobs; job_nr++) {
 
-		thread_list[job_nr] = thread(
-				inner_gather<T>,
-				sub_counts[job_nr],
-				&v_rcd[job_ranges[job_nr].begin],
-				&r[dest_job_starts[job_nr]],
-				&c[dest_job_starts[job_nr]],
-				&d[dest_job_starts[job_nr]]
-		);
+			thread_list[job_nr] = thread(
+					inner_gather<T>,
+					sub_counts[job_nr],
+					&v_rcd[job_ranges[job_nr].begin],
+					&r[dest_job_starts[job_nr]],
+					&c[dest_job_starts[job_nr]],
+					&d[dest_job_starts[job_nr]]
+			);
+		}
+		for (int job_nr = 0; job_nr < n_jobs; job_nr++)
+			thread_list[job_nr].join();
 	}
+	else {
+		vector<int> indptr(n_rows, 0);
+		for (int job_nr = 0; job_nr < n_jobs; job_nr++) {
 
-	for (int job_nr = 0; job_nr < n_jobs; job_nr++)
-		thread_list[job_nr].join();
+			thread_list[job_nr] = thread(
+					inner_gather_csr<T>,
+					sub_counts[job_nr],
+					&v_rcd[job_ranges[job_nr].begin],
+					&indptr[0],
+					&c[dest_job_starts[job_nr]],
+					&d[dest_job_starts[job_nr]]
+			);
+		}
+		for (int job_nr = 0; job_nr < n_jobs; job_nr++)
+			thread_list[job_nr].join();
+
+		r[0] = 0;
+		partial_sum(indptr.data(), indptr.data() + n_rows, r + 1);
+	}
 
 	return dest_job_starts[n_jobs];
 }
-template int topn_parallel<float>(int n, int r[], int c[], float d[], int ntop, int n_jobs);
-template int topn_parallel<double>(int n, int r[], int c[], double d[], int ntop, int n_jobs);
+template int topn_parallel<float>(int n, int r[], int c[], float d[], int ntop, int n_rows, int n_jobs);
+template int topn_parallel<double>(int n, int r[], int c[], double d[], int ntop, int n_rows, int n_jobs);
 

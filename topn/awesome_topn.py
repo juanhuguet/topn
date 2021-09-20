@@ -9,7 +9,7 @@ else:
     import topn_threaded as ct_thread
 
 
-def awesome_topn(r, c, d, ntop, use_threads=False, n_jobs=1):
+def awesome_topn(r, c, d, ntop, n_rows=-1, n_jobs=1):
     """
     r, c, and d are 1D numpy arrays all of the same length N. 
     This function will return arrays rn, cn, and dn of length n <= N such
@@ -23,25 +23,36 @@ def awesome_topn(r, c, d, ntop, use_threads=False, n_jobs=1):
         d: 1D array of single or double precision floating point type of the
         same length as r or c
         ntop maximum number of maximum d's returned
-        use_threads: use multi-thread or not
+        n_rows: an int. If > -1 it will replace output rn with Rn the
+            index pointer array for the compressed sparse row (CSR) matrix
+            whose elements are {C[rn[i], cn[i]] = dn: 0 < i < n}.  This matrix
+            will have its number of rows = n_rows.  Thus the length of Rn is
+            n_rows + 1
         n_jobs: number of threads, must be >= 1
 
     Output:
-        (rn, cn, dn) where rn, cn, dn are all arrays as described above.
+        (rn, cn, dn) where rn, cn, dn are all arrays as described above, or
+        (Rn, cn, dn) where Rn is described above
+        
     """
     dtype = r.dtype
     assert c.dtype == dtype
 
     idx_dtype = np.int32
     rr = np.asarray(r, dtype=idx_dtype)
+    len_r = len(r)
+    if (n_rows + 1) > len_r:
+        np.resize(rr, n_rows + 1)
     cc = np.asarray(c, dtype=idx_dtype)
     dd = d
     new_len = ct_thread.topn_threaded(
-        rr,
-        cc,
-        dd,
+        rr, cc, dd,
         ntop,
+        n_rows,
         n_jobs
     )
-   
-    return np.resize(rr, new_len), np.resize(cc, new_len), np.resize(dd, new_len)
+    
+    rr.resize((new_len if n_rows < 0 else (n_rows + 1)))
+    cc.resize(new_len)
+    dd.resize(new_len)
+    return rr, cc, dd

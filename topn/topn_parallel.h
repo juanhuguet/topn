@@ -22,6 +22,7 @@ extern int topn_parallel(
 		int c[],
 		T d[],
 		int ntop,
+		int n_rows,
 		int n_jobs
 );
 

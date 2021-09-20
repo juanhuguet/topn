@@ -21,6 +21,7 @@ cdef extern from "topn_parallel.h":
 		int c[],
 		T d[],
 		int ntop,
+		int n_rows,
 		int n_jobs
 	) except +;
 
@@ -29,6 +30,7 @@ cpdef topn_threaded(
 	np.ndarray[int, ndim=1] c,
 	np.ndarray[float_ft, ndim=1] d,
 	int ntop,
+	int n_rows,
 	int n_jobs
 ):
 	"""
@@ -56,10 +58,10 @@ cpdef topn_threaded(
 	cdef int* var_c = &c[0]
 	cdef float_ft* var_d = &d[0]
 	
-	n = len(r)
+	n = len(c)
 	
 	new_len = topn_parallel(
-		n, var_r, var_c, var_d, ntop, n_jobs
+		n, var_r, var_c, var_d, ntop, n_rows, n_jobs
 	)
 	
 	
