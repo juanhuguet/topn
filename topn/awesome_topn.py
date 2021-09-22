@@ -39,12 +39,12 @@ def awesome_topn(r, c, d, ntop, n_rows=-1, n_jobs=1):
     assert c.dtype == dtype
 
     idx_dtype = np.int32
-    rr = np.asarray(r, dtype=idx_dtype)
+    rr = r.astype(idx_dtype)
     len_r = len(r)
     if (n_rows + 1) > len_r:
-        np.resize(rr, n_rows + 1)
-    cc = np.asarray(c, dtype=idx_dtype)
-    dd = d
+        rr.resize(n_rows + 1, refcheck=False)
+    cc = c.astype(idx_dtype)
+    dd = d.copy()
     new_len = ct_thread.topn_threaded(
         rr, cc, dd,
         ntop,
@@ -52,7 +52,7 @@ def awesome_topn(r, c, d, ntop, n_rows=-1, n_jobs=1):
         n_jobs
     )
     
-    rr.resize((new_len if n_rows < 0 else (n_rows + 1)))
-    cc.resize(new_len)
-    dd.resize(new_len)
+    rr.resize((new_len if n_rows < 0 else (n_rows + 1)), refcheck=False)
+    cc.resize(new_len, refcheck=False)
+    dd.resize(new_len, refcheck=False)
     return rr, cc, dd
