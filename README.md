@@ -1,7 +1,16 @@
 # topn
 
-Utility function for `string_grouper` to use instead of pandas' `SeriesGroupBy` `nlargest()` function (since [pandas does it so slowly](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.core.groupby.SeriesGroupBy.nlargest.html)).
+Cython utility functions to be used instead of pandas' `SeriesGroupBy` `nlargest()` function (since [pandas does it so slowly](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.core.groupby.SeriesGroupBy.nlargest.html)).
 
+Contains 3 functions:
+1. `awesome_topn()`, 
+2. `awesome_hstack_topn()`,
+3. `awesome_hstack()`: (for CSR matrices only; twice as fast as `scipy.sparse.hstack` in scipy version 1.6.1)
+
+See [Short Description](#desc) for details.
+
+
+This is how it may be done with pandas:
 ```python
 import pandas as pd
 import numpy as np
@@ -203,7 +212,11 @@ pd.DataFrame({'r': r, 'c': c, 'd': d})
 </table>
 </div>
 
-## Short Description
+## Short Description <a name="desc"></a>
+Contains 3 functions:
+1. `awesome_topn()`, 
+2. `awesome_hstack_topn()`,
+3. `awesome_hstack()`
 
 ```python
 def awesome_topn(r, c, d, ntop, n_rows=-1, n_jobs=1):
@@ -229,7 +242,52 @@ def awesome_topn(r, c, d, ntop, n_rows=-1, n_jobs=1):
 
     Output:
         (rn, cn, dn) where rn, cn, dn are all arrays as described above, or
-        (Rn, cn, dn) when n_rows > -1, where Rn is described above 
+        (Rn, cn, dn) where Rn is described above
         
+    """
+
+
+def awesome_hstack_topn(blocks, ntop, sort=True, use_threads=False, n_jobs=1):
+    """
+    Returns, in CSR format, the matrix formed by horizontally stacking the
+    sequence of CSR matrices in parameter 'blocks', with only the largest ntop
+    elements of each row returned.  Also, each row will be sorted in
+    descending order only when 
+        ntop < total number of columns in blocks or sort=True,
+    otherwise the rows will be unsorted.
+    
+    :param blocks: list of CSR matrices to be stacked horizontally.
+    :param ntop: int. The maximum number of elements to be returned for
+        each row.
+    :param sort: bool. Each row of the returned matrix will be sorted in
+        descending order only when ntop < total number of columns in blocks
+        or sort=True, otherwise the rows will be unsorted.
+    :param use_threads: bool. Will use the multi-threaded versions of this
+        routine if True otherwise the single threaded version will be used.
+        In multi-core systems setting this to True can lead to acceleration.
+    :param n_jobs: int. When use_threads=True, denotes the number of threads
+        that are to be spawned by the multi-threaded routines. Recommended
+        value is number of cores minus one.
+
+    Output:
+        (scipy.sparse.csr_matrix) matrix in CSR format 
+    """
+
+
+def awesome_hstack(blocks, use_threads=False, n_jobs=1):
+    """
+    Returns, in CSR format, the matrix formed by horizontally stacking the
+    sequence of CSR matrices in parameter blocks.
+    
+    :param blocks: list of CSR matrices to be stacked horizontally.
+    :param use_threads: bool. Will use the multi-threaded versions of this
+        routine if True otherwise the single threaded version will be used.
+        In multi-core systems setting this to True can lead to acceleration.
+    :param n_jobs: int. When use_threads=True, denotes the number of threads
+        that are to be spawned by the multi-threaded routines. Recommended
+        value is number of cores minus one.
+
+    Output:
+        (scipy.sparse.csr_matrix) matrix in CSR format 
     """
 ```
