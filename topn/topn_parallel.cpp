@@ -372,6 +372,25 @@ template void inner_sparse_topn<double>( job_range_type job_range, int n_blocks,
 
 
 template<typename T>
+void inner_get_nnz_hstack(
+		job_range_type job_range,
+		int n_blocks,
+		int* bAp[],
+		int* bAj[],
+		T* bAx[],
+		int* total
+)
+{
+	// calculate maximum memory space needed to be reserved for sorted values
+	int mem_sz = 0;
+	for (int b = 0; b < n_blocks; b++) mem_sz += bAp[b][job_range.end] - bAp[b][job_range.begin];
+	(*total) = mem_sz;
+}
+template void inner_get_nnz_hstack<float>( job_range_type job_range, int n_blocks, int* bAp[], int* bAj[], float* bAx[], int* total);
+template void inner_get_nnz_hstack<double>( job_range_type job_range, int n_blocks, int* bAp[], int* bAj[], double* bAx[], int* total);
+
+
+template<typename T>
 void inner_sparse_hstack(
 		job_range_type job_range,
 		int n_blocks,
@@ -379,43 +398,29 @@ void inner_sparse_hstack(
 		int* bAp[],
 		int* bAj[],
 		T* bAx[],
-		vector<int>* real_indices,
-		vector<T>* real_values,
-		vector<int>* row_nnz,
-		int* total
+		int Bp[],
+		int Bj[],
+		T Bx[],
+		int start
 )
 {
-	// calculate maximum memory space needed to be reserved for sorted values
-	int mem_sz = 0;
-	for (int b = 0; b < n_blocks; b++) mem_sz += bAp[b][job_range.end] - bAp[b][job_range.begin];
-	real_indices->reserve(mem_sz);
-	real_values->reserve(mem_sz);
-
-	row_nnz->resize(job_range.end - job_range.begin);
-	int* row_nnz_ptr = row_nnz->data();
-
+	int s = start;
 	for(int i = job_range.begin; i < job_range.end; i++){
 
-		size_t sz = real_indices->size();
 		for (int b = 0; b < n_blocks; b++){
 			int jj_start = bAp[b][i];
 			int jj_end   = bAp[b][i+1];
 			int offset = col_offset[b];
 
-			int start = (int) real_indices->size();
-			size_t new_size = real_indices->size() + (size_t) (jj_end - jj_start);
-			real_indices->resize(new_size);
-			real_values->resize(new_size);
-			transform(&bAj[b][jj_start], &bAj[b][jj_end], real_indices->data() + start, [&](int x){return (x + offset);});
-			copy(&bAx[b][jj_start], &bAx[b][jj_end], real_values->data() + start);
+			transform(&bAj[b][jj_start], &bAj[b][jj_end], &Bj[s], [&](int x){return (x + offset);});
+			copy(&bAx[b][jj_start], &bAx[b][jj_end], &Bx[s]);
+			s += jj_end - jj_start;
 		}
-		int len = (int) (real_indices->size() - sz);
-		*(row_nnz_ptr++) = len;
-		(*total) += len;
+		Bp[i + 1] = s;
 	}
 }
-template void inner_sparse_hstack<float>( job_range_type job_range, int n_blocks, int col_offset[], int* bAp[], int* bAj[], float* bAx[], vector<int>* real_indices, vector<float>* real_values, vector<int>* row_nnz, int* total);
-template void inner_sparse_hstack<double>( job_range_type job_range, int n_blocks, int col_offset[], int* bAp[], int* bAj[], double* bAx[], vector<int>* real_indices, vector<double>* real_values, vector<int>* row_nnz, int* total);
+template void inner_sparse_hstack<float>( job_range_type job_range, int n_blocks, int col_offset[], int* bAp[], int* bAj[], float* bAx[], int Bp[], int Bj[], float Bx[], int start);
+template void inner_sparse_hstack<double>( job_range_type job_range, int n_blocks, int col_offset[], int* bAp[], int* bAj[], double* bAx[], int Bp[], int Bj[], double Bx[], int start);
 
 
 template<typename T>
@@ -606,10 +611,6 @@ void sparse_hstack_parallel(
 	vector<job_range_type> job_ranges(n_jobs);
 	distribute_load(n_row, n_jobs, job_ranges);
 
-	vector<vector<int>> real_indices(n_jobs);
-	vector<vector<T>> real_values(n_jobs);
-	vector<vector<int>> row_nnz(n_jobs);
-
 	// initialize aggregates:
 	vector<int> sub_total(n_jobs, 0);
 
@@ -618,14 +619,10 @@ void sparse_hstack_parallel(
 	for (int job_nr = 0; job_nr < n_jobs; job_nr++) {
 
 		thread_list[job_nr] = thread(
-				inner_sparse_hstack<T>,
+				inner_get_nnz_hstack<T>,
 				job_ranges[job_nr],
 				n_blocks,
-				&col_offsets[0],
 				&bAp[0], &bAj[0], &bAx[0],
-				&real_indices[job_nr],
-				&real_values[job_nr],
-				&row_nnz[job_nr],
 				&sub_total[job_nr]
 		);
 	}
@@ -633,23 +630,21 @@ void sparse_hstack_parallel(
 	for (int job_nr = 0; job_nr < n_jobs; job_nr++)
 		thread_list[job_nr].join();
 
-	vector<int> nnz_job_starts(n_jobs + 1);
+	vector<int> nnz_job_starts(n_jobs);
 	nnz_job_starts[0] = 0;
-	partial_sum(sub_total.begin(), sub_total.end(), nnz_job_starts.begin() + 1);
+	partial_sum(sub_total.data(), sub_total.data() + (n_jobs - 1), nnz_job_starts.data() + 1);
 
 	Bp[0] = 0;
 	for (int job_nr = 0; job_nr < n_jobs; job_nr++) {
 
 		thread_list[job_nr] = thread(
-				inner_gather_v3<T>,
+				inner_sparse_hstack<T>,
 				job_ranges[job_nr],
-				Bp,
-				nnz_job_starts[job_nr],
-				Bj,
-				Bx,
-				&real_indices[job_nr],
-				&real_values[job_nr],
-				&row_nnz[job_nr]
+				n_blocks,
+				&col_offsets[0],
+				&bAp[0], &bAj[0], &bAx[0],
+				Bp, Bj, Bx,
+				nnz_job_starts[job_nr]
 		);
 	}
 

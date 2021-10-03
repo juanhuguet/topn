@@ -5,7 +5,7 @@ Cython utility functions to be used instead of pandas' `SeriesGroupBy` `nlargest
 Contains 3 functions:
 1. `awesome_topn()`, 
 2. `awesome_hstack_topn()`,
-3. `awesome_hstack()`: (for CSR matrices only; twice as fast as `scipy.sparse.hstack` in scipy version 1.6.1)
+3. `awesome_hstack()`: (for CSR matrices only; at least twice as fast as `scipy.sparse.hstack` in scipy version 1.6.1)
 
 See [Short Description](#desc) for details.
 
@@ -17,7 +17,7 @@ import numpy as np
 
 r = np.array([0, 1, 2, 1, 2, 3, 2]) 
 c = np.array([1, 1, 0, 3, 1, 2, 3]) 
-d = np.array([0.0, 0.2, 0.1, 1.0, 0.9, 0.4, 0.6]) 
+d = np.array([0.3, 0.2, 0.1, 1.0, 0.9, 0.4, 0.6]) 
 rcd = pd.DataFrame({'r': r, 'c': c, 'd': d})
 rcd
 ```
@@ -40,7 +40,7 @@ rcd
       <th>0</th>
       <td>0</td>
       <td>1</td>
-      <td>0.0</td>
+      <td>0.3</td>
     </tr>
     <tr>
       <th>1</th>
@@ -112,7 +112,7 @@ rcd.set_index('c').groupby('r')['d'].nlargest(ntop).reset_index().sort_values(['
       <th>0</th>
       <td>0</td>
       <td>1</td>
-      <td>0.0</td>
+      <td>0.3</td>
     </tr>
     <tr>
       <th>1</th>
@@ -154,8 +154,8 @@ rcd.set_index('c').groupby('r')['d'].nlargest(ntop).reset_index().sort_values(['
 ```python
 from topn import awesome_topn
 
-r, c, d = awesome_topn(r, c, d, ntop, n_jobs=7)
-pd.DataFrame({'r': r, 'c': c, 'd': d})
+o_r, o_c, o_d = awesome_topn(r, c, d, ntop, n_jobs=7)
+pd.DataFrame({'r': o_r, 'c': o_c, 'd': o_d})
 ```
 
 
@@ -176,7 +176,7 @@ pd.DataFrame({'r': r, 'c': c, 'd': d})
       <th>0</th>
       <td>0</td>
       <td>1</td>
-      <td>0.0</td>
+      <td>0.3</td>
     </tr>
     <tr>
       <th>1</th>
@@ -211,6 +211,77 @@ pd.DataFrame({'r': r, 'c': c, 'd': d})
   </tbody>
 </table>
 </div>
+
+Alternatively, if one had a matrix encoding the above data:
+
+```python
+from scipy.sparse import csr_matrix 
+
+csr = csr_matrix((d, (r, c)), shape=(4, 4))
+```
+
+then one could use the function `awesome_hstack_topn()` instead:
+```python
+from topn import awesome_hstack_topn 
+
+topn_matrix = awesome_hstack_topn([csr], ntop=ntop)
+o_r, o_c = topn_matrix.nonzero()
+o_d = topn_matrix.data
+pd.DataFrame({'r': o_r, 'c': o_c, 'd': o_d})
+```
+
+<div>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>r</th>
+      <th>c</th>
+      <th>d</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>0</td>
+      <td>1</td>
+      <td>0.3</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1</td>
+      <td>3</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0.2</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2</td>
+      <td>1</td>
+      <td>0.9</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2</td>
+      <td>3</td>
+      <td>0.6</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>3</td>
+      <td>2</td>
+      <td>0.4</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
 
 ## Short Description <a name="desc"></a>
 Contains 3 functions:
