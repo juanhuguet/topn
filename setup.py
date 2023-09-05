@@ -2,30 +2,6 @@
 import os
 from setuptools import setup, Extension, find_packages
 
-# workaround for numpy and Cython install dependency
-# the solution is from https://stackoverflow.com/a/54138355
-def my_build_ext(pars):
-    # import delayed:
-    from setuptools.command.build_ext import build_ext as _build_ext
-    class build_ext(_build_ext):
-        def finalize_options(self):
-            # got error `'dict' object has no attribute '__NUMPY_SETUP__'`
-            # Follow this solution https://github.com/SciTools/cf-units/blob/master/setup.py#L99
-            def _set_builtin(name, value):
-                if isinstance(__builtins__, dict):
-                    __builtins__[name] = value
-                else:
-                    setattr(__builtins__, name, value)
-
-            _build_ext.finalize_options(self)
-            # Prevent numpy from thinking it is still in its setup process:
-            _set_builtin('__NUMPY_SETUP__', False)
-            import numpy
-            self.include_dirs.append(numpy.get_include())
-
-    #object returned:
-    return build_ext(pars)
-
 
 here = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
@@ -82,7 +58,6 @@ setup(
     ],
     zip_safe=False,
     packages=find_packages(),
-    cmdclass={'build_ext': my_build_ext},
     ext_modules=[original_ext, threaded_ext],
     package_data = {
         'topn': ['./topn/*.pxd']
