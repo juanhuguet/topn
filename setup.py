@@ -32,7 +32,7 @@ threaded_ext = Extension('topn.topn_threaded',
 
 setup(
     name='topn',
-    version='0.0.8',
+    version='0.1.0',
     description='This package boosts a group-wise nlargest sort',
     keywords='nlargest hstack csr csc scipy cython',
     long_description=long_description,
