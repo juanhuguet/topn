@@ -1,7 +1,7 @@
 # flake8: noqa
 import os
 from setuptools import setup, Extension, find_packages
-
+import numpy
 
 here = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
@@ -37,15 +37,13 @@ setup(
     keywords='nlargest hstack csr csc scipy cython',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/ParticularMiner/topn',
-    download_url='https://github.com/ParticularMiner/topn/archive/refs/tags/v0.0.7.tar.gz',
-    author='Particular Miner', 
-    author_email='particularminer@fake.com',
+    author='Particular Miner, Juan Huguet',
     license='MIT',
     zip_safe=False,
     packages=find_packages(),
+    include_dirs=[numpy.get_include()],
     ext_modules=[original_ext, threaded_ext],
-    package_data = {
+    package_data={
         'topn': ['./topn/*.pxd']
     },
     include_package_data=True,    
